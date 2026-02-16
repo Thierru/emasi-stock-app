@@ -2,8 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased overflow-x-hidden select-none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
 }
+
+.low-stock { @apply border-2 border-red-500 bg-red-50 !important; }
+.status-hs { @apply border-2 border-red-900 bg-red-50 !important; }
+
+/* Empêche le défilement du corps derrière les popups */
+.no-scroll { overflow: hidden; }
