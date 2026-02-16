@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RTE EMASI - V6.2</title>
+    <title>RTE EMASI - V6.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -17,17 +17,18 @@
         .modal.active { display: block; }
         label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; display: block; }
         
-        /* Toast centré (3s) */
         #toast {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 20px 40px; border-radius: 24px; color: white; font-weight: 900;
             z-index: 1000; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
             pointer-events: none; text-transform: uppercase; text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); backdrop-filter: blur(4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px);
         }
-        .toast-success { background-color: rgba(16, 185, 129, 0.95); border: 2px solid white; }
-        .toast-error { background-color: rgba(244, 63, 94, 0.95); border: 2px solid white; }
+        .toast-success { background-color: rgba(16, 185, 129, 0.9); border: 2px solid white; }
+        .toast-error { background-color: rgba(244, 63, 94, 0.9); border: 2px solid white; }
         .toast-show { opacity: 1 !important; scale: 1.1; }
+
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-32 font-sans text-slate-900">
@@ -49,11 +50,6 @@
             <div id="liste-pieces" class="grid gap-4"></div>
         </div>
 
-        <datalist id="liste-lieux">
-            <option value="LABO">
-            <option value="ATELIER">
-            <option value="BUREAU">
-        </datalist>
         <datalist id="liste-emplacements"></datalist>
 
         <div id="scanner-container" class="hidden fixed inset-0 bg-black/95 z-[200] flex flex-col p-6">
@@ -89,7 +85,13 @@
                 
                 <div class="grid grid-cols-2 gap-3">
                     <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
-                    <div><label>Lieu</label><input id="lieu" type="text" list="liste-lieux" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+                    <div>
+                        <label>Lieu</label>
+                        <div class="flex gap-1">
+                            <select id="lieu" class="flex-1 border p-4 rounded-2xl bg-slate-50 font-bold text-sm"></select>
+                            <button onclick="ajouterNouveauLieu()" class="bg-slate-100 px-3 rounded-xl border font-bold text-blue-600">+</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div><label>Emplacement Précis</label><input id="emplacement" type="text" list="liste-emplacements" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
@@ -103,7 +105,7 @@
                 <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
 
                 <div class="pt-4 space-y-3">
-                    <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest">Enregistrer</button>
+                    <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest active:scale-95 transition-transform">Enregistrer</button>
                     <button id="btn-supprimer" onclick="supprimerArticle()" class="hidden w-full text-red-500 font-bold py-2 uppercase text-[10px]">🗑️ Supprimer l'article</button>
                 </div>
             </div>
@@ -111,7 +113,6 @@
     </div>
 
     <script>
-        // ZONE 5 : LOGIQUE SUPABASE & LISTING
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
         const sb = supabase.createClient(S_URL, S_KEY);
@@ -127,12 +128,22 @@
         async function rafraichirSuggestions() {
             const { data } = await sb.from('produits').select('lieu, emplacement');
             if (data) {
-                const lieux = [...new Set(data.map(i => i.lieu).filter(Boolean))];
-                const empla = [...new Set(data.map(i => i.emplacement).filter(Boolean))];
-                const baseLieux = ["LABO", "ATELIER", "BUREAU"];
-                const finalLieux = [...new Set([...baseLieux, ...lieux])];
-                document.getElementById('liste-lieux').innerHTML = finalLieux.map(l => `<option value="${l}">`).join('');
+                const lieuxBase = ["LABO", "ATELIER", "BUREAU"];
+                const lieuxBDD = data.map(i => i.lieu).filter(Boolean);
+                const finalLieux = [...new Set([...lieuxBase, ...lieuxBDD])].sort();
+                document.getElementById('lieu').innerHTML = finalLieux.map(l => `<option value="${l}">${l}</option>`).join('');
+
+                const empla = [...new Set(data.map(i => i.emplacement).filter(Boolean))].sort();
                 document.getElementById('liste-emplacements').innerHTML = empla.map(e => `<option value="${e}">`).join('');
+            }
+        }
+
+        function ajouterNouveauLieu() {
+            const n = prompt("Nouveau lieu :")?.toUpperCase();
+            if(n) {
+                const s = document.getElementById('lieu');
+                s.innerHTML += `<option value="${n}">${n}</option>`;
+                s.value = n;
             }
         }
 
@@ -144,7 +155,7 @@
                 document.getElementById('liste-pieces').innerHTML = filtered.map(p => `
                     <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden transition-all ${p.quantite <= p.seuil_critique ? 'low-stock' : 'border-slate-100'}">
                         <div class="flex gap-4 p-5">
-                            <div class="w-24 h-24 bg-slate-50 rounded-[1.5rem] overflow-hidden flex-shrink-0 border border-slate-100 shadow-inner">
+                            <div class="w-24 h-24 bg-slate-50 rounded-[1.5rem] overflow-hidden flex-shrink-0 border flex items-center justify-center">
                                 <img src="${p.photo_url || 'https://via.placeholder.com/150?text=PIECE'}" class="w-full h-full object-cover">
                             </div>
                             <div class="flex-1 min-w-0">
@@ -152,18 +163,18 @@
                                     <h3 class="font-black text-slate-800 text-sm uppercase truncate pr-2">${p.nom}</h3>
                                     <button onclick="ouvrirForm('${p.id}')" class="bg-slate-50 p-2 rounded-xl text-lg shadow-sm">⚙️</button>
                                 </div>
-                                <p class="text-[10px] text-blue-600 font-black mt-2 uppercase tracking-tight">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
-                                <p class="text-[9px] font-mono text-slate-400 mt-1 bg-slate-50 px-2 py-0.5 rounded inline-block">🆔 ${p.barcode || 'SANS CODE'}</p>
+                                <p class="text-[10px] text-blue-600 font-black mt-2 uppercase">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
+                                <p class="text-[9px] font-mono text-slate-400 mt-1 bg-slate-50 px-2 py-0.5 rounded inline-block uppercase">🆔 ${p.barcode || 'AUTO'}</p>
                                 <div class="flex gap-3 mt-3">
-                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Prix: ${p.prix_unitaire || 0}€</div>
-                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Délai: ${p.delai_reappro || '?'}j</div>
+                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">${p.prix_unitaire || 0}€</div>
+                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">${p.delai_reappro || '?'}J</div>
                                 </div>
                             </div>
                         </div>
                         <div class="bg-slate-50/50 p-5 flex justify-between items-center border-t border-slate-100">
                             <div class="flex gap-3">
-                                <button onclick="updateQty('${p.id}', -1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl">-</button>
-                                <button onclick="updateQty('${p.id}', 1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl">+</button>
+                                <button onclick="updateQty('${p.id}', -1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">-</button>
+                                <button onclick="updateQty('${p.id}', 1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">+</button>
                             </div>
                             <div class="text-right">
                                 <span class="text-3xl font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : 'text-blue-900'}">x${p.quantite}</span>
@@ -175,7 +186,6 @@
             }
         }
 
-        // ZONE 6 : FONCTIONS UTILITAIRES
         async function toggleScanner() {
             const container = document.getElementById('scanner-container');
             if (container.classList.contains('hidden')) {
@@ -191,10 +201,7 @@
                         chargerDonnees();
                     } else {
                         showToast("NON TROUVÉ ❌", "error");
-                        if(confirm("Code inconnu. Créer une fiche ?")) {
-                            ouvrirForm();
-                            document.getElementById('barcode').value = txt;
-                        }
+                        if(confirm("Inconnu. Créer une fiche ?")) { ouvrirForm(); document.getElementById('barcode').value = txt; }
                     }
                 }).catch(err => { console.error(err); });
             } else { 
@@ -204,9 +211,8 @@
         }
 
         async function uploadPhoto(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const btn = document.getElementById('btn-upload'); btn.innerText = "⏳ ENVOI...";
+            const file = event.target.files[0]; if (!file) return;
+            const btn = document.getElementById('btn-upload'); btn.innerText = "⏳...";
             const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
             const { data, error } = await sb.storage.from('photos-stock').upload(fileName, file);
             if (!error) {
@@ -221,7 +227,6 @@
 
         async function ouvrirForm(id = null) {
             document.getElementById('modal-form').classList.add('active');
-            const delBtn = document.getElementById('btn-supprimer');
             const preview = document.getElementById('img-preview');
             const placeholder = document.getElementById('img-placeholder');
             if(id) {
@@ -229,7 +234,7 @@
                 document.getElementById('edit-id').value = data.id;
                 document.getElementById('nom').value = data.nom;
                 document.getElementById('barcode').value = data.barcode || "";
-                document.getElementById('lieu').value = data.lieu || "";
+                document.getElementById('lieu').value = data.lieu || "LABO";
                 document.getElementById('emplacement').value = data.emplacement || "";
                 document.getElementById('qty').value = data.quantite;
                 document.getElementById('seuil').value = data.seuil_critique;
@@ -237,13 +242,13 @@
                 document.getElementById('delai').value = data.delai_reappro || 0;
                 document.getElementById('photo-url').value = data.photo_url || "";
                 if(data.photo_url) { preview.src = data.photo_url; preview.classList.remove('hidden'); placeholder.classList.add('hidden'); }
-                delBtn.classList.remove('hidden');
+                document.getElementById('btn-supprimer').classList.remove('hidden');
             } else {
                 document.getElementById('edit-id').value = "";
                 document.querySelectorAll('#modal-form input:not([type=hidden])').forEach(i => i.value = (i.type === "number" ? 0 : ""));
                 document.getElementById('seuil').value = 2;
                 preview.classList.add('hidden'); placeholder.classList.remove('hidden');
-                delBtn.classList.add('hidden');
+                document.getElementById('btn-supprimer').classList.add('hidden');
             }
         }
 
@@ -268,9 +273,8 @@
         }
 
         async function supprimerArticle() {
-            if (confirm("Supprimer cet article ?")) {
-                const id = document.getElementById('edit-id').value;
-                await sb.from('produits').delete().eq('id', id);
+            if (confirm("Supprimer ?")) {
+                await sb.from('produits').delete().eq('id', document.getElementById('edit-id').value);
                 showToast("Supprimé", "error"); fermerForm(); chargerDonnees();
             }
         }
@@ -283,6 +287,8 @@
         }
 
         function fermerForm() { document.getElementById('modal-form').classList.remove('active'); }
+        
+        // INITIALISATION
         chargerDonnees();
         rafraichirSuggestions();
     </script>
