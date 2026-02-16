@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RTE EMASI - V5</title>
+    <title>RTE EMASI - V5.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -15,6 +15,7 @@
         .modal { display: none; position: fixed; inset: 0; background: white; z-index: 100; overflow-y: auto; }
         .modal.active { display: block; }
         label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; display: block; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-32 font-sans text-slate-900">
@@ -26,11 +27,11 @@
         </div>
 
         <div class="flex gap-2 mb-6">
-            <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher..." class="flex-1 p-4 rounded-2xl border shadow-sm outline-none bg-white">
-            <button onclick="toggleScanner()" class="bg-slate-800 text-white w-14 h-14 rounded-2xl flex items-center justify-center text-xl shadow-lg">📷</button>
+            <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher une pièce..." class="flex-1 p-4 rounded-2xl border shadow-sm outline-none bg-white font-medium">
+            <button onclick="toggleScanner()" class="bg-slate-800 text-white w-14 h-14 rounded-2xl flex items-center justify-center text-xl shadow-lg active:scale-90 transition-transform">📷</button>
         </div>
 
-        <div id="tab-pieces" class="tabs-content active space-y-4">
+        <div id="tab-pieces" class="tabs-content active">
             <div id="liste-pieces" class="grid gap-4"></div>
         </div>
 
@@ -40,91 +41,104 @@
                 <button onclick="toggleScanner()" class="text-3xl">✕</button>
             </div>
             <div id="reader"></div>
-            <p id="scan-msg" class="text-blue-400 text-center font-bold mt-4"></p>
+            <p class="text-slate-400 text-center text-xs mt-6 uppercase font-bold tracking-widest">Placez le code dans le cadre</p>
         </div>
 
         <div id="modal-form" class="modal p-6">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 id="form-title" class="text-xl font-black text-blue-900 uppercase">Fiche Article</h2>
+                <h2 id="form-title" class="text-xl font-black text-blue-900 uppercase italic">Fiche Article</h2>
                 <button onclick="fermerForm()" class="text-slate-400 text-2xl font-bold">✕</button>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-5">
                 <input type="hidden" id="edit-id">
                 
                 <div>
                     <label>Photo de l'article</label>
-                    <input type="text" id="photo-url" placeholder="URL de l'image (ou laisser vide)" class="w-full border p-3 rounded-xl bg-slate-50">
+                    <div class="flex gap-3 items-center">
+                        <div id="photo-preview" class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200 flex items-center justify-center">
+                            <img id="img-preview" src="" class="hidden w-full h-full object-cover">
+                            <span id="img-placeholder" class="text-2xl text-slate-300">🖼️</span>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" onchange="uploadPhoto(event)">
+                        <button id="btn-upload" onclick="document.getElementById('file-input').click()" class="flex-1 bg-white border-2 border-dashed border-blue-200 p-4 rounded-2xl text-[10px] font-black uppercase text-blue-600 active:bg-blue-50">
+                            📸 Prendre / Choisir Photo
+                        </button>
+                    </div>
+                    <input type="hidden" id="photo-url">
                 </div>
 
-                <div><label>Désignation</label><input id="nom" type="text" class="w-full border p-3 rounded-xl font-bold"></div>
+                <div><label>Désignation</label><input id="nom" type="text" placeholder="ex: Relais K1" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
                 
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-3 rounded-xl font-mono text-blue-600"></div>
-                    <div><label>Lieu (Ville/Site)</label><input id="lieu" type="text" placeholder="ex: Metz" class="w-full border p-3 rounded-xl"></div>
+                    <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600"></div>
+                    <div><label>Lieu (Ville/Site)</label><input id="lieu" type="text" placeholder="ex: Metz" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
                 </div>
 
-                <div><label>Emplacement Précis</label><input id="emplacement" type="text" placeholder="ex: Armoire A - Rang 2" class="w-full border p-3 rounded-xl"></div>
+                <div><label>Emplacement Précis</label><input id="emplacement" type="text" placeholder="ex: Armoire A - Rang 2" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
 
                 <div class="grid grid-cols-3 gap-3">
-                    <div><label>Qté Actuelle</label><input id="qty" type="number" value="0" class="w-full border p-3 rounded-xl font-bold text-center"></div>
-                    <div><label>Seuil Alerte</label><input id="seuil" type="number" value="2" class="w-full border p-3 rounded-xl font-bold text-center text-red-600"></div>
-                    <div><label>Prix (€)</label><input id="prix" type="number" step="0.01" value="0" class="w-full border p-3 rounded-xl text-center"></div>
+                    <div><label>Qté</label><input id="qty" type="number" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg"></div>
+                    <div><label>Seuil</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg text-red-600"></div>
+                    <div><label>Prix (€)</label><input id="prix" type="number" step="0.01" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
                 </div>
 
-                <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" placeholder="ex: 5" class="w-full border p-3 rounded-xl"></div>
+                <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" placeholder="ex: 5" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
 
-                <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase shadow-xl mt-4 active:scale-95 transition-transform">Enregistrer l'Article</button>
+                <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl mt-4 active:scale-95 transition-transform tracking-widest">Enregistrer l'Article</button>
             </div>
         </div>
     </div>
 
     <script>
+        // CONFIG SUPABASE
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
         const sb = supabase.createClient(S_URL, S_KEY);
         let html5QrCode;
 
-        // CHARGEMENT
+        // CHARGEMENT DES DONNÉES
         async function chargerDonnees() {
             const search = document.getElementById('search').value.toLowerCase();
-            const { data } = await sb.from('produits').select('*').eq('categorie', 'PIECE').order('nom');
+            const { data, error } = await sb.from('produits').select('*').eq('categorie', 'PIECE').order('nom');
             
+            if (error) { console.error(error); return; }
+
             const filtered = data.filter(p => p.nom.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)));
             
             document.getElementById('liste-pieces').innerHTML = filtered.map(p => `
-                <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden ${p.quantite <= p.seuil_critique ? 'low-stock' : 'border-slate-100'}">
-                    <div class="flex gap-4 p-4">
-                        <div class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden flex-shrink-0">
-                            <img src="${p.photo_url || 'https://via.placeholder.com/100?text=PIECE'}" class="w-full h-full object-cover">
+                <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden transition-all ${p.quantite <= p.seuil_critique ? 'low-stock' : 'border-slate-100'}">
+                    <div class="flex gap-4 p-5">
+                        <div class="w-24 h-24 bg-slate-50 rounded-[1.5rem] overflow-hidden flex-shrink-0 border border-slate-100">
+                            <img src="${p.photo_url || 'https://via.placeholder.com/150?text=AUCUNE'}" class="w-full h-full object-cover">
                         </div>
-                        <div class="flex-1">
-                            <div class="flex justify-between items-start">
-                                <h3 class="font-black text-slate-800 text-sm uppercase leading-tight">${p.nom}</h3>
-                                <button onclick="ouvrirForm('${p.id}')" class="text-lg">⚙️</button>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start gap-2">
+                                <h3 class="font-black text-slate-800 text-sm uppercase leading-tight truncate">${p.nom}</h3>
+                                <button onclick="ouvrirForm('${p.id}')" class="bg-slate-50 p-2 rounded-xl text-lg">⚙️</button>
                             </div>
-                            <p class="text-[10px] text-blue-600 font-bold mt-1">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
-                            <div class="flex gap-4 mt-2">
-                                <div class="text-[9px] font-bold"><span class="text-slate-400">PRIX:</span> ${p.prix_unitaire || 0}€</div>
-                                <div class="text-[9px] font-bold"><span class="text-slate-400">DÉLAI:</span> ${p.delai_reappro || '?'}j</div>
+                            <p class="text-[10px] text-blue-600 font-black mt-2 uppercase tracking-tighter">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
+                            <div class="flex gap-4 mt-3 bg-slate-50 p-2 rounded-xl inline-flex">
+                                <div class="text-[9px] font-black uppercase"><span class="text-slate-400">PRIX:</span> ${p.prix_unitaire || 0}€</div>
+                                <div class="text-[9px] font-black uppercase"><span class="text-slate-400">REAP:</span> ${p.delai_reappro || '?'}j</div>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-50 p-4 flex justify-between items-center border-t border-slate-100">
-                        <div class="flex gap-2">
-                            <button onclick="updateQty('${p.id}', -1, '${p.nom}')" class="bg-white border w-10 h-10 rounded-xl font-black shadow-sm">-</button>
-                            <button onclick="updateStockQuick('${p.id}', 1, '${p.nom}')" class="bg-white border w-10 h-10 rounded-xl font-black shadow-sm">+</button>
+                    <div class="bg-slate-50/50 p-5 flex justify-between items-center border-t border-slate-50">
+                        <div class="flex gap-3">
+                            <button onclick="updateQty('${p.id}', -1, '${p.nom}')" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">-</button>
+                            <button onclick="updateQty('${p.id}', 1, '${p.nom}')" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">+</button>
                         </div>
                         <div class="text-right">
-                            <span class="text-2xl font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : 'text-blue-900'}">x${p.quantite}</span>
-                            <p class="text-[8px] font-bold uppercase text-slate-400">Seuil min: ${p.seuil_critique}</p>
+                            <span class="text-3xl font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : 'text-blue-900'}">x${p.quantite}</span>
+                            <p class="text-[9px] font-black uppercase text-slate-400 tracking-widest">Alerte: ${p.seuil_critique}</p>
                         </div>
                     </div>
                 </div>
             `).join('');
         }
 
-        // SCANNER LOGIQUE
+        // GESTION SCANNER
         function toggleScanner() {
             const container = document.getElementById('scanner-container');
             if (container.classList.contains('hidden')) {
@@ -138,7 +152,7 @@
                         chargerDonnees();
                         toggleScanner();
                     } else {
-                        if(confirm("❌ CODE INCONNU. Créer un nouvel article avec ce code ?")) {
+                        if(confirm("❌ CODE INCONNU (" + txt + "). Créer une nouvelle fiche ?")) {
                             toggleScanner();
                             ouvrirForm();
                             document.getElementById('barcode').value = txt;
@@ -148,23 +162,63 @@
             } else { container.classList.add('hidden'); if(html5QrCode) html5QrCode.stop(); }
         }
 
+        // GESTION PHOTOS (STORAGE)
+        async function uploadPhoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const btn = document.getElementById('btn-upload');
+            const preview = document.getElementById('img-preview');
+            const placeholder = document.getElementById('img-placeholder');
+            
+            btn.innerText = "⏳ ENVOI EN COURS...";
+            const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+
+            const { data, error } = await sb.storage.from('photos-stock').upload(fileName, file);
+
+            if (error) {
+                alert("Erreur upload: " + error.message);
+                btn.innerText = "📸 Prendre / Choisir Photo";
+            } else {
+                const { data: urlData } = sb.storage.from('photos-stock').getPublicUrl(fileName);
+                document.getElementById('photo-url').value = urlData.publicUrl;
+                preview.src = urlData.publicUrl;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                btn.innerText = "✅ PHOTO OK";
+                btn.classList.add('bg-emerald-50', 'text-emerald-600', 'border-emerald-200');
+            }
+        }
+
         // FORMULAIRE
         async function ouvrirForm(id = null) {
             document.getElementById('modal-form').classList.add('active');
+            const preview = document.getElementById('img-preview');
+            const placeholder = document.getElementById('img-placeholder');
+            
             if(id) {
                 const { data } = await sb.from('produits').select('*').eq('id', id).single();
                 document.getElementById('edit-id').value = data.id;
                 document.getElementById('nom').value = data.nom;
-                document.getElementById('barcode').value = data.barcode;
-                document.getElementById('lieu').value = data.lieu;
-                document.getElementById('emplacement').value = data.emplacement;
+                document.getElementById('barcode').value = data.barcode || "";
+                document.getElementById('lieu').value = data.lieu || "";
+                document.getElementById('emplacement').value = data.emplacement || "";
                 document.getElementById('qty').value = data.quantite;
                 document.getElementById('seuil').value = data.seuil_critique;
-                document.getElementById('prix').value = data.prix_unitaire;
-                document.getElementById('delai').value = data.delai_reappro;
+                document.getElementById('prix').value = data.prix_unitaire || 0;
+                document.getElementById('delai').value = data.delai_reappro || 0;
                 document.getElementById('photo-url').value = data.photo_url || "";
+                if(data.photo_url) {
+                    preview.src = data.photo_url;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
             } else {
+                document.getElementById('edit-id').value = "";
                 document.querySelectorAll('#modal-form input').forEach(i => i.value = i.type === "number" ? 0 : "");
+                document.getElementById('seuil').value = 2;
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
             }
         }
 
@@ -176,26 +230,39 @@
                 barcode: document.getElementById('barcode').value,
                 lieu: document.getElementById('lieu').value,
                 emplacement: document.getElementById('emplacement').value,
-                quantite: parseInt(document.getElementById('qty').value),
-                seuil_critique: parseInt(document.getElementById('seuil').value),
-                prix_unitaire: parseFloat(document.getElementById('prix').value),
-                delai_reappro: parseInt(document.getElementById('delai').value),
+                quantite: parseInt(document.getElementById('qty').value) || 0,
+                seuil_critique: parseInt(document.getElementById('seuil').value) || 0,
+                prix_unitaire: parseFloat(document.getElementById('prix').value) || 0,
+                delai_reappro: parseInt(document.getElementById('delai').value) || 0,
                 photo_url: document.getElementById('photo-url').value,
                 categorie: 'PIECE'
             };
+
             const id = document.getElementById('edit-id').value;
-            const { error } = id ? await sb.from('produits').update(payload).eq('id', id) : await sb.from('produits').insert([payload]);
+            const { error } = id 
+                ? await sb.from('produits').update(payload).eq('id', id) 
+                : await sb.from('produits').insert([payload]);
             
-            if(!error) { fermerForm(); chargerDonnees(); } else { alert(error.message); }
+            if(!error) { fermerForm(); chargerDonnees(); } else { alert("Erreur: " + error.message); }
         }
 
-        async function updateStockQuick(id, diff, nom) {
+        async function updateQty(id, diff, nom) {
             const { data } = await sb.from('produits').select('quantite').eq('id', id).single();
             const newQty = Math.max(0, (data.quantite || 0) + diff);
             await sb.from('produits').update({ quantite: newQty }).eq('id', id);
+            
+            // Log historique
+            await sb.from('historique').insert([{
+                produit_nom: nom,
+                action: diff > 0 ? "➕ AJOUT" : "➖ SORTIE",
+                quantite_finale: newQty,
+                utilisateur: "THIERRY"
+            }]);
+            
             chargerDonnees();
         }
 
+        // Initialisation
         chargerDonnees();
     </script>
 </body>
