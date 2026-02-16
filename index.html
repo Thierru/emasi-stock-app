@@ -3,252 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RTE EMASI - V7.0</title>
+    <title>RTE EMASI - V8.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
     <style>
         .tabs-content { display: none; }
         .tabs-content.active { display: block; }
-        .low-stock { border: 3px solid #ef4444 !important; background-color: #fef2f2 !important; }
-        #reader { width: 100%; border-radius: 24px; overflow: hidden; background: black; min-height: 250px; }
+        .nav-active { color: #2563eb !important; border-top: 3px solid #2563eb; background: #eff6ff; }
         .modal { display: none; position: fixed; inset: 0; background: white; z-index: 100; overflow-y: auto; }
         .modal.active { display: block; }
         label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; display: block; }
-        
-        #toast {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            padding: 20px 40px; border-radius: 24px; color: white; font-weight: 900;
-            z-index: 1000; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            pointer-events: none; text-transform: uppercase; text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px);
-        }
-        .toast-success { background-color: rgba(16, 185, 129, 0.9); border: 2px solid white; }
-        .toast-error { background-color: rgba(244, 63, 94, 0.9); border: 2px solid white; }
-        .toast-show { opacity: 1 !important; scale: 1.1; }
-
-        /* Custom Select Appearance */
-        select { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
-        
-        /* Navigation active state */
-        .nav-active { color: #2563eb !important; border-top: 3px solid #2563eb; }
+        .etat-hs { border-left: 8px solid #ef4444; }
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; border-radius: 15px; color: white; z-index: 1000; opacity: 0; transition: 0.3s; font-weight: bold; pointer-events: none; }
+        .toast-show { opacity: 1 !important; top: 40px !important; }
+        @media print { .no-print { display: none; } #print-area { display: block !important; } }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen pb-32 font-sans text-slate-900">
+<body class="bg-slate-100 min-h-screen pb-24 text-slate-900">
 
-    <div id="toast"></div>
+    <div id="toast" class="bg-slate-800 shadow-xl"></div>
 
     <div class="max-w-xl mx-auto p-4">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-6 no-print">
             <h1 class="text-xl font-black text-blue-900 italic uppercase">RTE <span class="text-blue-500">EMASI</span></h1>
+            <button onclick="ouvrirForm()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg">+ NOUVEAU</button>
+        </div>
+
+        <div id="search-container" class="flex gap-2 mb-6 no-print">
+            <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher..." class="flex-1 p-4 rounded-2xl border-none shadow-md outline-none bg-white font-medium">
+            <button onclick="toggleScanner()" class="bg-slate-800 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg">📷</button>
+        </div>
+
+        <div id="tab-pieces" class="tabs-content active"><div id="liste-pieces" class="grid gap-4"></div></div>
+        <div id="tab-materiel" class="tabs-content"><div id="liste-materiel" class="grid gap-4"></div></div>
+
+        <div id="tab-budget" class="tabs-content">
+            <h2 class="text-lg font-black uppercase text-slate-500 mb-4 italic">Prévisions d'achat</h2>
+            <div id="budget-summary" class="bg-blue-900 text-white p-6 rounded-[2rem] mb-6 shadow-xl">
+                <p class="text-[10px] uppercase font-bold opacity-70">Total Estimé</p>
+                <p id="total-budget" class="text-4xl font-black">0.00 €</p>
+            </div>
+            <div id="liste-budget" class="grid gap-3"></div>
+        </div>
+
+        <div id="tab-admin" class="tabs-content">
+            <h2 class="text-lg font-black uppercase text-slate-500 mb-4 italic">Administration</h2>
+            <div class="grid gap-4">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold mb-4 uppercase text-xs text-blue-600">Import / Export Données</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="exporterExcel()" class="bg-slate-100 p-4 rounded-2xl text-[10px] font-black uppercase">Export Global</button>
+                        <button onclick="document.getElementById('import-excel').click()" class="bg-slate-100 p-4 rounded-2xl text-[10px] font-black uppercase italic text-blue-600 underline">Import Excel</button>
+                        <input type="file" id="import-excel" class="hidden" accept=".xlsx" onchange="importerExcel(event)">
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold mb-4 uppercase text-xs text-orange-600">Étiquettes</h3>
+                    <button onclick="genererPlancheCodes()" class="w-full bg-orange-50 text-orange-600 p-4 rounded-2xl text-[10px] font-black uppercase">Imprimer tous les codes barres</button>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold mb-4 uppercase text-xs text-slate-400 italic">Historique des actions</h3>
+                    <div id="liste-historique" class="text-[10px] space-y-2 mt-4 max-h-60 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around z-[50] shadow-2xl no-print">
+            <button id="nav-pieces" onclick="switchTab('pieces')" class="flex flex-col items-center p-3 nav-active w-full text-slate-400">
+                <span class="text-xl">📦</span><span class="text-[8px] font-bold uppercase">Pièces</span>
+            </button>
+            <button id="nav-materiel" onclick="switchTab('materiel')" class="flex flex-col items-center p-3 w-full text-slate-400">
+                <span class="text-xl">🛠️</span><span class="text-[8px] font-bold uppercase">Outils</span>
+            </button>
+            <button id="nav-budget" onclick="switchTab('budget')" class="flex flex-col items-center p-3 w-full text-slate-400">
+                <span class="text-xl">💰</span><span class="text-[8px] font-bold uppercase">Budget</span>
+            </button>
+            <button id="nav-admin" onclick="switchTab('admin')" class="flex flex-col items-center p-3 w-full text-slate-400">
+                <span class="text-xl">⚙️</span><span class="text-[8px] font-bold uppercase">Admin</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="print-area" class="hidden p-4 bg-white min-h-screen">
+        <h1 class="text-center font-bold mb-8 uppercase">Planche d'étiquettes RTE EMASI</h1>
+        <div id="barcode-grid" class="grid grid-cols-3 gap-4"></div>
+        <button onclick="window.print()" class="no-print mt-10 bg-blue-600 text-white p-4 w-full rounded-xl font-bold uppercase">Confirmer l'impression</button>
+        <button onclick="location.reload()" class="no-print mt-2 bg-slate-200 p-2 w-full rounded-xl text-xs font-bold uppercase">Retour</button>
+    </div>
+
+    <div id="modal-form" class="modal p-6">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <h2 class="text-xl font-black text-blue-900 uppercase italic">Fiche Article</h2>
+            <button onclick="fermerForm()" class="text-slate-400 text-2xl font-bold">✕</button>
+        </div>
+        <div class="space-y-4 pb-10">
+            <input type="hidden" id="edit-id">
+            <input type="hidden" id="article-type" value="PIECE">
             <div class="flex gap-2">
-                 <button onclick="exporterExcel()" class="bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl font-bold text-[10px] uppercase">Excel</button>
-                 <button onclick="ouvrirForm()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg">+ NOUVEAU</button>
+                <button id="btn-type-piece" onclick="setType('PIECE')" class="flex-1 p-3 rounded-xl border-2 font-black text-[10px] uppercase">📦 Pièce</button>
+                <button id="btn-type-materiel" onclick="setType('MATERIEL')" class="flex-1 p-3 rounded-xl border-2 font-black text-[10px] uppercase">🛠️ Matériel</button>
             </div>
-        </div>
-
-        <div id="tab-pieces" class="tabs-content active">
-            <div class="flex gap-2 mb-6">
-                <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher..." class="flex-1 p-4 rounded-2xl border shadow-sm outline-none bg-white font-medium">
-                <button onclick="toggleScanner()" class="bg-slate-800 text-white w-14 h-14 rounded-2xl flex items-center justify-center text-xl shadow-lg active:scale-90 transition-transform">📷</button>
+            <div><label>Désignation</label><input id="nom" type="text" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label>Code / SN</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-sm"></div>
+                <div><label>Lieu</label><select id="lieu" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold text-xs"></select></div>
             </div>
-            <div id="liste-pieces" class="grid gap-4"></div>
-        </div>
-
-        <div id="tab-historique" class="tabs-content">
-            <h2 class="text-lg font-black text-slate-400 uppercase italic mb-4">Mouvements de stock</h2>
-            <div id="liste-historique" class="grid gap-2"></div>
-        </div>
-
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-2 z-[50] shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-            <button id="nav-pieces" onclick="switchTab('pieces')" class="flex flex-col items-center p-2 nav-active w-full text-slate-400">
-                <span class="text-xl">📦</span>
-                <span class="text-[10px] font-bold uppercase">Stock</span>
-            </button>
-            <button id="nav-historique" onclick="switchTab('historique')" class="flex flex-col items-center p-2 w-full text-slate-400">
-                <span class="text-xl">🕒</span>
-                <span class="text-[10px] font-bold uppercase">Historique</span>
-            </button>
-        </div>
-
-        <div id="scanner-container" class="hidden fixed inset-0 bg-black/95 z-[200] flex flex-col p-6">
-            <div class="flex justify-between items-center mb-6 text-white">
-                <h2 class="font-black uppercase tracking-widest text-sm text-blue-400">Scan Code-Barre</h2>
-                <button onclick="toggleScanner()" class="text-3xl">✕</button>
+            <div><label>Emplacement</label><input id="emplacement" type="text" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold text-sm"></div>
+            <div id="section-etat" class="hidden">
+                <label>État</label>
+                <select id="etat" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-blue-600">
+                    <option value="OK">FONCTIONNEL (OK)</option>
+                    <option value="HS">HORS SERVICE (HS)</option>
+                    <option value="REPARATION">EN RÉPARATION</option>
+                    <option value="ETALONNAGE">EN ÉTALONNAGE</option>
+                </select>
             </div>
-            <div id="reader"></div>
-        </div>
-
-        <div id="modal-form" class="modal p-6">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-xl font-black text-blue-900 uppercase italic">Fiche Article</h2>
-                <button onclick="fermerForm()" class="text-slate-400 text-2xl font-bold">✕</button>
+            <div class="grid grid-cols-3 gap-3">
+                <div><label>Qté</label><input id="qty" type="number" value="1" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
+                <div><label>Alerte</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
+                <div><label>Prix (€)</label><input id="prix" type="number" step="0.01" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
             </div>
-            <div class="space-y-5 pb-10">
-                <input type="hidden" id="edit-id">
-                
-                <div>
-                    <label>Photo</label>
-                    <div class="flex gap-3 items-center">
-                        <div class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center">
-                            <img id="img-preview" src="" class="hidden w-full h-full object-cover">
-                            <span id="img-placeholder" class="text-2xl">🖼️</span>
-                        </div>
-                        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden" onchange="uploadPhoto(event)">
-                        <button id="btn-upload" onclick="document.getElementById('file-input').click()" class="flex-1 bg-white border-2 border-dashed border-blue-200 p-4 rounded-2xl text-[10px] font-black uppercase text-blue-600">Prendre Photo</button>
-                    </div>
-                    <input type="hidden" id="photo-url">
-                </div>
-
-                <div><label>Désignation</label><input id="nom" type="text" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label>Code-Barre</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
-                    <div>
-                        <label>Lieu</label>
-                        <div class="flex gap-1">
-                            <select id="lieu" class="flex-1 border p-4 rounded-2xl bg-slate-50 font-bold text-sm"></select>
-                            <button onclick="ajouterNouveauLieu()" class="bg-slate-100 px-3 rounded-xl border font-bold text-blue-600">+</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div><label>Emplacement Précis</label><input id="emplacement" type="text" list="liste-emplacements" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold uppercase text-sm"></div>
-                <datalist id="liste-emplacements"></datalist>
-
-                <div class="grid grid-cols-3 gap-3">
-                    <div><label>Qté</label><input id="qty" type="number" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg"></div>
-                    <div><label>Seuil</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-red-600 text-lg"></div>
-                    <div><label>Prix (€)</label><input id="prix" type="number" step="0.01" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
-                </div>
-
-                <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
-
-                <div class="pt-4 space-y-3">
-                    <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest active:scale-95 transition-transform">Enregistrer</button>
-                    <button id="btn-supprimer" onclick="supprimerArticle()" class="hidden w-full text-red-500 font-bold py-2 uppercase text-[10px]">🗑️ Supprimer</button>
-                </div>
-            </div>
+            <div class="pt-4"><button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest">Enregistrer</button></div>
         </div>
     </div>
 
     <script>
-        // CONFIGURATION SUPABASE
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
         const sb = supabase.createClient(S_URL, S_KEY);
-        let html5QrCode;
+        let currentTab = 'pieces';
 
-        // GESTION DES ONGLETS
-        function switchTab(tabName) {
-            document.querySelectorAll('.tabs-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('nav button, .fixed.bottom-0 button').forEach(b => b.classList.remove('nav-active'));
-            
-            document.getElementById('tab-' + tabName).classList.add('active');
-            document.getElementById('nav-' + tabName).classList.add('nav-active');
-            
-            if(tabName === 'historique') chargerHistorique();
-            if(tabName === 'pieces') chargerDonnees();
-        }
-
-        function showToast(msg, type = 'success') {
+        function showToast(msg, color='bg-slate-800') {
             const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.className = `toast-show ${type === 'success' ? 'toast-success' : 'toast-error'}`;
-            setTimeout(() => { t.className = ''; }, 3000);
+            t.innerText = msg; t.className = `toast-show ${color} shadow-2xl`;
+            setTimeout(() => t.className = 'bg-slate-800', 3000);
         }
 
-        // CHARGEMENT HISTORIQUE
-        async function chargerHistorique() {
-            const { data } = await sb.from('historique').select('*').order('created_at', { ascending: false }).limit(40);
-            if (data) {
-                document.getElementById('liste-historique').innerHTML = data.map(h => {
-                    const date = new Date(h.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-                    const isPlus = h.variation > 0;
-                    return `
-                        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-                            <div>
-                                <p class="text-[9px] font-black text-slate-400 uppercase">${date}</p>
-                                <p class="font-bold text-sm text-slate-800 uppercase">${h.produit_nom}</p>
-                                <p class="text-[9px] text-blue-500 font-bold uppercase">📍 ${h.lieu || 'STOCK'}</p>
-                            </div>
-                            <div class="${isPlus ? 'text-emerald-500' : 'text-rose-500'} font-black text-xl">
-                                ${isPlus ? '+' : ''}${h.variation}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        }
-
-        // EXPORT EXCEL
-        async function exporterExcel() {
-            showToast("Génération Excel...");
-            const { data } = await sb.from('produits').select('*').order('nom');
-            if (data) {
-                const ws = XLSX.utils.json_to_sheet(data);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Inventaire");
-                XLSX.writeFile(wb, `EMASI_STOCK_${new Date().toISOString().split('T')[0]}.xlsx`);
-                showToast("Téléchargé !");
-            }
-        }
-
-        async function rafraichirSuggestions() {
-            const { data } = await sb.from('produits').select('lieu, emplacement');
-            if (data) {
-                const lieuxBase = ["LABO", "ATELIER", "BUREAU"];
-                const lieuxBDD = data.map(i => i.lieu).filter(Boolean);
-                const finalLieux = [...new Set([...lieuxBase, ...lieuxBDD])].sort();
-                document.getElementById('lieu').innerHTML = finalLieux.map(l => `<option value="${l}">${l}</option>`).join('');
-
-                const empla = [...new Set(data.map(i => i.emplacement).filter(Boolean))].sort();
-                document.getElementById('liste-emplacements').innerHTML = empla.map(e => `<option value="${e}">`).join('');
-            }
-        }
-
-        function ajouterNouveauLieu() {
-            const n = prompt("Nom du nouveau lieu :")?.toUpperCase();
-            if(n) {
-                const s = document.getElementById('lieu');
-                s.innerHTML += `<option value="${n}">${n}</option>`;
-                s.value = n;
-            }
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tabs-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.fixed.bottom-0 button').forEach(b => b.classList.remove('nav-active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('nav-' + tab).classList.add('nav-active');
+            document.getElementById('search-container').style.display = (tab === 'pieces' || tab === 'materiel') ? 'flex' : 'none';
+            if(tab === 'budget') chargerBudget();
+            if(tab === 'admin') chargerHistorique();
+            chargerDonnees();
         }
 
         async function chargerDonnees() {
+            if(currentTab === 'budget' || currentTab === 'admin') return;
             const search = document.getElementById('search').value.toLowerCase();
-            const { data } = await sb.from('produits').select('*').eq('categorie', 'PIECE').order('nom');
-            if (data) {
+            const typeFilter = currentTab === 'pieces' ? 'PIECE' : 'MATERIEL';
+            const { data } = await sb.from('produits').select('*').eq('categorie', typeFilter).order('nom');
+            
+            if(data) {
                 const filtered = data.filter(p => p.nom.toLowerCase().includes(search) || (p.barcode && p.barcode.includes(search)));
-                document.getElementById('liste-pieces').innerHTML = filtered.map(p => `
-                    <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden transition-all ${p.quantite <= p.seuil_critique ? 'low-stock' : 'border-slate-100'}">
-                        <div class="flex gap-4 p-5">
-                            <div class="w-24 h-24 bg-slate-100 rounded-[1.5rem] overflow-hidden flex-shrink-0 border flex items-center justify-center">
-                                <img src="${p.photo_url || 'https://via.placeholder.com/150?text=PIECE'}" class="w-full h-full object-cover">
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start">
-                                    <h3 class="font-black text-slate-800 text-sm uppercase truncate pr-2">${p.nom}</h3>
-                                    <button onclick="ouvrirForm('${p.id}')" class="bg-white p-2 rounded-xl text-lg shadow-sm border">⚙️</button>
-                                </div>
-                                <p class="text-[10px] text-blue-600 font-black mt-2 uppercase italic">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
-                                <div class="flex gap-2 mt-2">
-                                    <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded uppercase font-bold">🆔 ${p.barcode || 'AUTO'}</span>
-                                    <span class="text-[9px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded italic uppercase">${p.prix_unitaire || 0}€ / ${p.delai_reappro || '?'}J</span>
-                                </div>
-                            </div>
+                document.getElementById('liste-' + currentTab).innerHTML = filtered.map(p => `
+                    <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex gap-4 ${p.etat === 'HS' ? 'etat-hs' : ''}">
+                        <div class="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center font-bold text-xs">
+                            ${p.photo_url ? `<img src="${p.photo_url}" class="w-full h-full object-cover rounded-xl">` : '🖼️'}
                         </div>
-                        <div class="bg-slate-50/80 p-5 flex justify-between items-center border-t">
-                            <div class="flex gap-3">
-                                <button onclick="updateQty('${p.id}', -1)" class="bg-white border-2 w-14 h-14 rounded-2xl font-black shadow-sm text-2xl active:bg-slate-100 transition-colors">-</button>
-                                <button onclick="updateQty('${p.id}', 1)" class="bg-white border-2 w-14 h-14 rounded-2xl font-black shadow-sm text-2xl active:bg-slate-100 transition-colors">+</button>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-3xl font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : 'text-blue-900'}">x${p.quantite}</span>
-                                <p class="text-[8px] font-black uppercase text-slate-400 tracking-widest">ALERTE: ${p.seuil_critique}</p>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-black text-xs uppercase truncate">${p.nom}</h3>
+                            <p class="text-[9px] font-bold text-blue-600 uppercase italic mt-1">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-lg font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : ''}">x${p.quantite}</span>
+                                <button onclick="ouvrirForm('${p.id}')" class="text-lg">⚙️</button>
                             </div>
                         </div>
                     </div>
@@ -256,127 +181,148 @@
             }
         }
 
-        async function updateQty(id, diff) {
-            const { data: p } = await sb.from('produits').select('nom, quantite, lieu').eq('id', id).single();
-            const newQty = Math.max(0, (p.quantite || 0) + diff);
-            
-            // 1. Maj Stock
-            await sb.from('produits').update({ quantite: newQty }).eq('id', id);
-            
-            // 2. Maj Historique
-            await sb.from('historique').insert([{
-                produit_nom: p.nom,
-                variation: diff,
-                lieu: p.lieu
-            }]);
-
-            chargerDonnees();
-            showToast(diff > 0 ? `+${diff} ${p.nom}` : `${diff} ${p.nom}`, diff > 0 ? 'success' : 'error');
-        }
-
-        async function toggleScanner() {
-            const container = document.getElementById('scanner-container');
-            if (container.classList.contains('hidden')) {
-                container.classList.remove('hidden');
-                html5QrCode = new Html5Qrcode("reader");
-                html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, async (txt) => {
-                    const { data } = await sb.from('produits').select('*').eq('barcode', txt).maybeSingle();
-                    if(html5QrCode) { await html5QrCode.stop(); await html5QrCode.clear(); }
-                    container.classList.add('hidden');
-                    if (data) {
-                        showToast("ARTICLE TROUVÉ ✅");
-                        document.getElementById('search').value = txt;
-                        chargerDonnees();
-                    } else {
-                        showToast("INCONNU ❌", "error");
-                        if(confirm("Code inconnu. Créer une fiche ?")) { ouvrirForm(); document.getElementById('barcode').value = txt; }
-                    }
-                }).catch(err => { console.error(err); });
-            } else { 
-                container.classList.add('hidden'); 
-                if(html5QrCode) { await html5QrCode.stop(); await html5QrCode.clear(); }
-            }
-        }
-
-        async function uploadPhoto(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const btn = document.getElementById('btn-upload'); btn.innerText = "⏳...";
-            const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-            const { data, error } = await sb.storage.from('photos-stock').upload(fileName, file);
-            if (!error) {
-                const { data: urlData } = sb.storage.from('photos-stock').getPublicUrl(fileName);
-                document.getElementById('photo-url').value = urlData.publicUrl;
-                document.getElementById('img-preview').src = urlData.publicUrl;
-                document.getElementById('img-preview').classList.remove('hidden');
-                document.getElementById('img-placeholder').classList.add('hidden');
-                btn.innerText = "📸 PHOTO OK";
-            } else { showToast("Erreur photo", "error"); btn.innerText = "Recommencer"; }
-        }
-
-        async function ouvrirForm(id = null) {
-            document.getElementById('modal-form').classList.add('active');
-            const preview = document.getElementById('img-preview');
-            const placeholder = document.getElementById('img-placeholder');
-            if(id) {
-                const { data } = await sb.from('produits').select('*').eq('id', id).single();
-                document.getElementById('edit-id').value = data.id;
-                document.getElementById('nom').value = data.nom;
-                document.getElementById('barcode').value = data.barcode || "";
-                document.getElementById('lieu').value = data.lieu || "LABO";
-                document.getElementById('emplacement').value = data.emplacement || "";
-                document.getElementById('qty').value = data.quantite;
-                document.getElementById('seuil').value = data.seuil_critique;
-                document.getElementById('prix').value = data.prix_unitaire || 0;
-                document.getElementById('delai').value = data.delai_reappro || 0;
-                document.getElementById('photo-url').value = data.photo_url || "";
-                if(data.photo_url) { preview.src = data.photo_url; preview.classList.remove('hidden'); placeholder.classList.add('hidden'); }
-                document.getElementById('btn-supprimer').classList.remove('hidden');
-            } else {
-                document.getElementById('edit-id').value = "";
-                document.querySelectorAll('#modal-form input:not([type=hidden])').forEach(i => i.value = (i.type === "number" ? 0 : ""));
-                document.getElementById('seuil').value = 2;
-                preview.classList.add('hidden'); placeholder.classList.remove('hidden');
-                document.getElementById('btn-supprimer').classList.add('hidden');
+        async function chargerBudget() {
+            const { data } = await sb.from('produits').select('*');
+            if(data) {
+                // Articles en alerte ou HS
+                const enAlerte = data.filter(p => (p.categorie === 'PIECE' && p.quantite <= p.seuil_critique) || (p.categorie === 'MATERIEL' && p.etat === 'HS'));
+                let total = 0;
+                
+                document.getElementById('liste-budget').innerHTML = enAlerte.map(p => {
+                    const qteAcheter = p.categorie === 'PIECE' ? (p.seuil_critique + 5) - p.quantite : 1;
+                    const cout = qteAcheter * (p.prix_unitaire || 0);
+                    total += cout;
+                    return `
+                        <div class="bg-white p-4 rounded-2xl flex justify-between items-center border-l-4 ${p.etat === 'HS' ? 'border-red-500' : 'border-orange-500'}">
+                            <div>
+                                <p class="font-black text-xs uppercase">${p.nom}</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase">${p.etat === 'HS' ? 'HS - À Remplacer' : 'Seuil atteint'}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-black text-blue-900">${cout.toFixed(2)} €</p>
+                                <p class="text-[8px] uppercase font-bold text-slate-400">Prévu: +${qteAcheter}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('total-budget').innerText = total.toFixed(2) + " €";
             }
         }
 
         async function sauvegarder() {
-            let barcode = document.getElementById('barcode').value;
-            if (!barcode && !document.getElementById('edit-id').value) barcode = "RTE-" + Math.floor(100000 + Math.random() * 900000);
+            const id = document.getElementById('edit-id').value;
             const payload = {
                 nom: document.getElementById('nom').value.toUpperCase(),
-                barcode: barcode,
+                barcode: document.getElementById('barcode').value || "RTE-" + Date.now(),
                 lieu: document.getElementById('lieu').value,
                 emplacement: document.getElementById('emplacement').value.toUpperCase(),
                 quantite: parseInt(document.getElementById('qty').value) || 0,
                 seuil_critique: parseInt(document.getElementById('seuil').value) || 0,
                 prix_unitaire: parseFloat(document.getElementById('prix').value) || 0,
-                delai_reappro: parseInt(document.getElementById('delai').value) || 0,
-                photo_url: document.getElementById('photo-url').value,
-                categorie: 'PIECE'
+                categorie: document.getElementById('article-type').value,
+                etat: document.getElementById('etat').value
             };
-            const id = document.getElementById('edit-id').value;
+
             const { error } = id ? await sb.from('produits').update(payload).eq('id', id) : await sb.from('produits').insert([payload]);
-            if(!error) { 
-                showToast("Enregistré !"); 
-                fermerForm(); 
-                chargerDonnees(); 
-                rafraichirSuggestions(); 
+            
+            if(!error) {
+                await sb.from('historique').insert([{ 
+                    produit_nom: payload.nom, 
+                    variation: id ? 'MODIFICATION' : 'CREATION', 
+                    type_action: 'ADMIN' 
+                }]);
+                showToast("Données sauvegardées ✅");
+                fermerForm();
+                chargerDonnees();
             }
         }
 
-        async function supprimerArticle() {
-            if (confirm("Supprimer définitivement cet article ?")) {
-                await sb.from('produits').delete().eq('id', document.getElementById('edit-id').value);
-                showToast("Supprimé", "error"); fermerForm(); chargerDonnees();
+        async function exporterExcel() {
+            const { data } = await sb.from('produits').select('*');
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Stock");
+            XLSX.writeFile(wb, `RTE_EMASI_EXPORT_${new Date().toLocaleDateString()}.xlsx`);
+        }
+
+        function importerExcel(event) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet);
+                
+                showToast("Importation de " + json.length + " lignes...");
+                const { error } = await sb.from('produits').upsert(json);
+                if(!error) { showToast("Importation réussie ✅", "bg-emerald-600"); chargerDonnees(); }
+            };
+            reader.readAsArrayBuffer(event.target.files[0]);
+        }
+
+        function genererPlancheCodes() {
+            document.querySelector('.max-w-xl').style.display = 'none';
+            document.querySelector('.fixed.bottom-0').style.display = 'none';
+            const area = document.getElementById('print-area');
+            area.classList.remove('hidden');
+            
+            sb.from('produits').select('nom, barcode').then(({data}) => {
+                document.getElementById('barcode-grid').innerHTML = data.map(p => `
+                    <div class="border p-2 text-center">
+                        <p class="text-[8px] font-bold mb-1 truncate">${p.nom}</p>
+                        <svg id="code-${p.barcode.replace(/\s/g, '')}"></svg>
+                    </div>
+                `).join('');
+                data.forEach(p => {
+                    JsBarcode(`#code-${p.barcode.replace(/\s/g, '')}`, p.barcode, { height: 30, fontSize: 10 });
+                });
+            });
+        }
+
+        async function chargerHistorique() {
+            const { data } = await sb.from('historique').select('*').order('created_at', {ascending: false}).limit(20);
+            if(data) {
+                document.getElementById('liste-historique').innerHTML = data.map(h => `
+                    <div class="border-b py-1 flex justify-between italic">
+                        <span>${h.variation} : ${h.produit_nom}</span>
+                        <span class="text-slate-400">${new Date(h.created_at).toLocaleDateString()}</span>
+                    </div>
+                `).join('');
             }
         }
 
+        // Fonctions UI simples
+        function setType(t) { 
+            document.getElementById('article-type').value = t; 
+            document.getElementById('section-etat').classList.toggle('hidden', t === 'PIECE');
+        }
+        function ouvrirForm(id=null) { 
+            document.getElementById('modal-form').classList.add('active'); 
+            if(!id) {
+                document.querySelectorAll('#modal-form input').forEach(i => i.value = "");
+                document.getElementById('qty').value = 1;
+            } else {
+                sb.from('produits').select('*').eq('id', id).single().then(({data}) => {
+                    document.getElementById('edit-id').value = data.id;
+                    document.getElementById('nom').value = data.nom;
+                    document.getElementById('barcode').value = data.barcode;
+                    document.getElementById('qty').value = data.quantite;
+                    document.getElementById('seuil').value = data.seuil_critique;
+                    document.getElementById('prix').value = data.prix_unitaire;
+                    setType(data.categorie);
+                });
+            }
+        }
         function fermerForm() { document.getElementById('modal-form').classList.remove('active'); }
-        
-        // DÉMARRAGE
-        chargerDonnees();
-        rafraichirSuggestions();
+
+        // Démarrage
+        switchTab('pieces');
+        // Charger les lieux au démarrage (à adapter selon ta table produits)
+        sb.from('produits').select('lieu').then(({data}) => {
+            const lieux = [...new Set(data.map(d => d.lieu).filter(Boolean))];
+            document.getElementById('lieu').innerHTML = lieux.map(l => `<option value="${l}">${l}</option>`).join('');
+        });
+
     </script>
 </body>
 </html>
