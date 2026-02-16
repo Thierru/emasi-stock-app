@@ -7,6 +7,54 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
+const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
+const sb = supabase.createClient(S_URL, S_KEY);
+
+let userPseudo = "THIERRY";
+
+// Fonction pour charger les données au démarrage
+async function chargerDonnees() {
+    const { data, error } = await sb.from('produits').select('*').order('nom');
+    if (error) {
+        console.log("Erreur de lecture base :", error);
+        return;
+    }
+    renderPieces(data.filter(p => (p.categorie || 'PIECE') === 'PIECE'));
+    renderMateriel(data.filter(p => p.categorie === 'MATERIEL'));
+    calculerBudget(data);
+}
+
+// Fonction pour les boutons + et -
+async function updateStock(id, diff, nom) {
+    const { data: item } = await sb.from('produits').select('quantite').eq('id', id).single();
+    const newQty = Math.max(0, (item.quantite || 0) + diff);
+    
+    await sb.from('produits').update({ quantite: newQty }).eq('id', id);
+    
+    await sb.from('historique').insert([{ 
+        produit_nom: nom, 
+        utilisateur: userPseudo, 
+        action: diff > 0 ? "➕ AJOUT" : "➖ SORTIE", 
+        quantite_finale: newQty 
+    }]);
+    
+    chargerDonnees();
+}
+
+// Initialisation
+async function checkUser() {
+    // Ici on simule la connexion pour ton interface
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+        document.getElementById('login-section').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        chargerDonnees();
+    }
+}
+
+checkUser();
+    </script>
   </body>
 </html>
