@@ -114,7 +114,7 @@
             const t = document.getElementById('toast');
             t.innerText = msg;
             t.className = `toast-show ${type === 'success' ? 'toast-success' : 'toast-error'}`;
-            setTimeout(() => { t.className = ''; }, 3000);
+            setTimeout(() => { t.className = ''; }, 2000);
         }
 
         async function chargerDonnees() {
