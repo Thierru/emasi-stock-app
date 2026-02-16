@@ -82,11 +82,15 @@
                 
                 <div class="grid grid-cols-2 gap-3">
                     <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
-                    <div><label>Lieu</label><input id="lieu" type="text" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
-                </div>
-
-                <div><label>Emplacement Précis</label><input id="emplacement" type="text" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
-
+                    <div>
+    <label>Lieu</label>
+    <input id="lieu" type="text" list="liste-lieux" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold" placeholder="EX: LABO">
+</div>
+...
+<div>
+    <label>Emplacement Précis</label>
+    <input id="emplacement" type="text" list="liste-emplacements" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold" placeholder="EX: ARMOIRE A1">
+</div>
                 <div class="grid grid-cols-3 gap-3">
                     <div><label>Qté</label><input id="qty" type="number" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg"></div>
                     <div><label>Seuil</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-red-600 text-lg"></div>
@@ -104,6 +108,18 @@
     </div>
 
     <script>
+//ZONE 3 : INTERFACE HTML (Ajout des listes de suggestions)
+        <datalist id="liste-lieux">
+    <option value="LABO">
+    <option value="ATELIER">
+    <option value="BUREAU">
+</datalist>
+<datalist id="liste-emplacements"></datalist>
+
+
+
+
+        
         // ZONE 5 : LOGIQUE SUPABASE & LISTING
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
