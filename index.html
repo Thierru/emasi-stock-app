@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RTE EMASI - V6.1</title>
+    <title>RTE EMASI - V6.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -17,7 +17,7 @@
         .modal.active { display: block; }
         label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; display: block; }
         
-        /* Notifications Toast - Centrées au milieu (3s) */
+        /* Toast centré (3s) */
         #toast {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 20px 40px; border-radius: 24px; color: white; font-weight: 900;
@@ -49,6 +49,13 @@
             <div id="liste-pieces" class="grid gap-4"></div>
         </div>
 
+        <datalist id="liste-lieux">
+            <option value="LABO">
+            <option value="ATELIER">
+            <option value="BUREAU">
+        </datalist>
+        <datalist id="liste-emplacements"></datalist>
+
         <div id="scanner-container" class="hidden fixed inset-0 bg-black/95 z-[200] flex flex-col p-6">
             <div class="flex justify-between items-center mb-6 text-white">
                 <h2 class="font-black uppercase tracking-widest text-sm text-blue-400">Scan en cours...</h2>
@@ -68,7 +75,7 @@
                 <div>
                     <label>Photo</label>
                     <div class="flex gap-3 items-center">
-                        <div class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center shadow-inner">
+                        <div class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center">
                             <img id="img-preview" src="" class="hidden w-full h-full object-cover">
                             <span id="img-placeholder" class="text-2xl">🖼️</span>
                         </div>
@@ -78,19 +85,15 @@
                     <input type="hidden" id="photo-url">
                 </div>
 
-                <div><label>Désignation</label><input id="nom" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+                <div><label>Désignation</label><input id="nom" type="text" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
                 
                 <div class="grid grid-cols-2 gap-3">
                     <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
-                    <div>
-    <label>Lieu</label>
-    <input id="lieu" type="text" list="liste-lieux" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold" placeholder="EX: LABO">
-</div>
-...
-<div>
-    <label>Emplacement Précis</label>
-    <input id="emplacement" type="text" list="liste-emplacements" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold" placeholder="EX: ARMOIRE A1">
-</div>
+                    <div><label>Lieu</label><input id="lieu" type="text" list="liste-lieux" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+                </div>
+
+                <div><label>Emplacement Précis</label><input id="emplacement" type="text" list="liste-emplacements" oninput="this.value = this.value.toUpperCase()" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+
                 <div class="grid grid-cols-3 gap-3">
                     <div><label>Qté</label><input id="qty" type="number" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg"></div>
                     <div><label>Seuil</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-red-600 text-lg"></div>
@@ -108,18 +111,6 @@
     </div>
 
     <script>
-//ZONE 3 : INTERFACE HTML (Ajout des listes de suggestions)
-        <datalist id="liste-lieux">
-    <option value="LABO">
-    <option value="ATELIER">
-    <option value="BUREAU">
-</datalist>
-<datalist id="liste-emplacements"></datalist>
-
-
-
-
-        
         // ZONE 5 : LOGIQUE SUPABASE & LISTING
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
@@ -130,7 +121,19 @@
             const t = document.getElementById('toast');
             t.innerText = msg;
             t.className = `toast-show ${type === 'success' ? 'toast-success' : 'toast-error'}`;
-            setTimeout(() => { t.className = ''; }, 2000);
+            setTimeout(() => { t.className = ''; }, 3000);
+        }
+
+        async function rafraichirSuggestions() {
+            const { data } = await sb.from('produits').select('lieu, emplacement');
+            if (data) {
+                const lieux = [...new Set(data.map(i => i.lieu).filter(Boolean))];
+                const empla = [...new Set(data.map(i => i.emplacement).filter(Boolean))];
+                const baseLieux = ["LABO", "ATELIER", "BUREAU"];
+                const finalLieux = [...new Set([...baseLieux, ...lieux])];
+                document.getElementById('liste-lieux').innerHTML = finalLieux.map(l => `<option value="${l}">`).join('');
+                document.getElementById('liste-emplacements').innerHTML = empla.map(e => `<option value="${e}">`).join('');
+            }
         }
 
         async function chargerDonnees() {
@@ -151,7 +154,6 @@
                                 </div>
                                 <p class="text-[10px] text-blue-600 font-black mt-2 uppercase tracking-tight">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
                                 <p class="text-[9px] font-mono text-slate-400 mt-1 bg-slate-50 px-2 py-0.5 rounded inline-block">🆔 ${p.barcode || 'SANS CODE'}</p>
-                                
                                 <div class="flex gap-3 mt-3">
                                     <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Prix: ${p.prix_unitaire || 0}€</div>
                                     <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Délai: ${p.delai_reappro || '?'}j</div>
@@ -174,54 +176,37 @@
         }
 
         // ZONE 6 : FONCTIONS UTILITAIRES
-   function toggleScanner() {
+        async function toggleScanner() {
             const container = document.getElementById('scanner-container');
             if (container.classList.contains('hidden')) {
                 container.classList.remove('hidden');
                 html5QrCode = new Html5Qrcode("reader");
                 html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, async (txt) => {
-                    
-                    // 1. On cherche l'article
                     const { data } = await sb.from('produits').select('*').eq('barcode', txt).maybeSingle();
-                    
+                    if(html5QrCode) { await html5QrCode.stop(); await html5QrCode.clear(); }
+                    container.classList.add('hidden');
                     if (data) {
-                        // SI TROUVÉ : On ferme TOUT de suite la caméra et on affiche
                         showToast("ARTICLE TROUVÉ ✅");
-                        if(html5QrCode) {
-                            await html5QrCode.stop();
-                            await html5QrCode.clear();
-                        }
-                        container.classList.add('hidden');
                         document.getElementById('search').value = txt;
                         chargerDonnees();
                     } else {
-                        // SI NON TROUVÉ : On prévient et on demande si on crée
                         showToast("NON TROUVÉ ❌", "error");
-                        if(confirm("Code inconnu (" + txt + "). Créer une fiche ?")) {
-                            // On ferme la caméra avant d'ouvrir le formulaire
-                            if(html5QrCode) {
-                                await html5QrCode.stop();
-                                await html5QrCode.clear();
-                            }
-                            container.classList.add('hidden');
+                        if(confirm("Code inconnu. Créer une fiche ?")) {
                             ouvrirForm();
                             document.getElementById('barcode').value = txt;
                         }
                     }
                 }).catch(err => { console.error(err); });
             } else { 
-                // Fermeture manuelle via la croix
                 container.classList.add('hidden'); 
-                if(html5QrCode) {
-                    html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
-                }
+                if(html5QrCode) { await html5QrCode.stop(); await html5QrCode.clear(); }
             }
         }
+
         async function uploadPhoto(event) {
             const file = event.target.files[0];
             if (!file) return;
-            const btn = document.getElementById('btn-upload');
-            btn.innerText = "⏳ ENVOI...";
+            const btn = document.getElementById('btn-upload'); btn.innerText = "⏳ ENVOI...";
             const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
             const { data, error } = await sb.storage.from('photos-stock').upload(fileName, file);
             if (!error) {
@@ -239,7 +224,6 @@
             const delBtn = document.getElementById('btn-supprimer');
             const preview = document.getElementById('img-preview');
             const placeholder = document.getElementById('img-placeholder');
-            
             if(id) {
                 const { data } = await sb.from('produits').select('*').eq('id', id).single();
                 document.getElementById('edit-id').value = data.id;
@@ -256,7 +240,7 @@
                 delBtn.classList.remove('hidden');
             } else {
                 document.getElementById('edit-id').value = "";
-                document.querySelectorAll('#modal-form input').forEach(i => i.value = (i.type === "number" ? 0 : ""));
+                document.querySelectorAll('#modal-form input:not([type=hidden])').forEach(i => i.value = (i.type === "number" ? 0 : ""));
                 document.getElementById('seuil').value = 2;
                 preview.classList.add('hidden'); placeholder.classList.remove('hidden');
                 delBtn.classList.add('hidden');
@@ -265,14 +249,12 @@
 
         async function sauvegarder() {
             let barcode = document.getElementById('barcode').value;
-            if (!barcode && !document.getElementById('edit-id').value) {
-                barcode = "RTE-" + Math.floor(100000 + Math.random() * 900000);
-            }
+            if (!barcode && !document.getElementById('edit-id').value) barcode = "RTE-" + Math.floor(100000 + Math.random() * 900000);
             const payload = {
-                nom: document.getElementById('nom').value,
+                nom: document.getElementById('nom').value.toUpperCase(),
                 barcode: barcode,
-                lieu: document.getElementById('lieu').value,
-                emplacement: document.getElementById('emplacement').value,
+                lieu: document.getElementById('lieu').value.toUpperCase(),
+                emplacement: document.getElementById('emplacement').value.toUpperCase(),
                 quantite: parseInt(document.getElementById('qty').value) || 0,
                 seuil_critique: parseInt(document.getElementById('seuil').value) || 0,
                 prix_unitaire: parseFloat(document.getElementById('prix').value) || 0,
@@ -282,7 +264,7 @@
             };
             const id = document.getElementById('edit-id').value;
             const { error } = id ? await sb.from('produits').update(payload).eq('id', id) : await sb.from('produits').insert([payload]);
-            if(!error) { showToast("Enregistré !"); fermerForm(); chargerDonnees(); }
+            if(!error) { showToast("Enregistré !"); fermerForm(); chargerDonnees(); rafraichirSuggestions(); }
         }
 
         async function supprimerArticle() {
@@ -302,6 +284,7 @@
 
         function fermerForm() { document.getElementById('modal-form').classList.remove('active'); }
         chargerDonnees();
+        rafraichirSuggestions();
     </script>
 </body>
 </html>
