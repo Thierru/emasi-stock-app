@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RTE EMASI - V6.0</title>
+    <title>RTE EMASI - V6.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -17,26 +17,13 @@
         .modal.active { display: block; }
         label { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; display: block; }
         
-      /* Notifications Toast - Centrées au milieu */
+        /* Notifications Toast - Centrées au milieu (3s) */
         #toast {
-            position: fixed; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%);
-            padding: 20px 40px; 
-            border-radius: 24px; 
-            color: white; 
-            font-weight: 900;
-            z-index: 1000; 
-            opacity: 0; 
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            pointer-events: none;
-            text-transform: uppercase; 
-            font-size: 1rem; 
-            letter-spacing: 1px;
-            text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(4px);
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            padding: 20px 40px; border-radius: 24px; color: white; font-weight: 900;
+            z-index: 1000; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            pointer-events: none; text-transform: uppercase; text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); backdrop-filter: blur(4px);
         }
         .toast-success { background-color: rgba(16, 185, 129, 0.95); border: 2px solid white; }
         .toast-error { background-color: rgba(244, 63, 94, 0.95); border: 2px solid white; }
@@ -49,15 +36,12 @@
 
     <div class="max-w-xl mx-auto p-4">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-xl font-black text-blue-900 italic uppercase leading-none">
-                RTE <span class="text-blue-500">EMASI</span> <br>
-                <span class="text-[9px] tracking-[0.3em] text-slate-400 not-italic">LORRAINE</span>
-            </h1>
+            <h1 class="text-xl font-black text-blue-900 italic uppercase">RTE <span class="text-blue-500">EMASI</span></h1>
             <button onclick="ouvrirForm()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg">+ NOUVEAU</button>
         </div>
 
         <div class="flex gap-2 mb-6">
-            <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher une pièce..." class="flex-1 p-4 rounded-2xl border shadow-sm outline-none bg-white font-medium">
+            <input id="search" oninput="chargerDonnees()" type="text" placeholder="Rechercher..." class="flex-1 p-4 rounded-2xl border shadow-sm outline-none bg-white font-medium">
             <button onclick="toggleScanner()" class="bg-slate-800 text-white w-14 h-14 rounded-2xl flex items-center justify-center text-xl shadow-lg active:scale-90 transition-transform">📷</button>
         </div>
 
@@ -82,7 +66,7 @@
                 <input type="hidden" id="edit-id">
                 
                 <div>
-                    <label>Photo de l'article</label>
+                    <label>Photo</label>
                     <div class="flex gap-3 items-center">
                         <div class="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden border flex items-center justify-center shadow-inner">
                             <img id="img-preview" src="" class="hidden w-full h-full object-cover">
@@ -94,33 +78,33 @@
                     <input type="hidden" id="photo-url">
                 </div>
 
-                <div><label>Désignation</label><input id="nom" type="text" placeholder="Nom de la pièce" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
+                <div><label>Désignation</label><input id="nom" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-bold"></div>
                 
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label>Code-Barre / QR</label><input id="barcode" type="text" placeholder="Scanner ou vide pour auto" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
-                    <div><label>Lieu (Ville)</label><input id="lieu" type="text" placeholder="ex: Metz" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
+                    <div><label>Code-Barre / QR</label><input id="barcode" type="text" class="w-full border p-4 rounded-2xl bg-slate-50 font-mono text-blue-600 text-sm"></div>
+                    <div><label>Lieu</label><input id="lieu" type="text" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
                 </div>
 
-                <div><label>Emplacement Précis</label><input id="emplacement" type="text" placeholder="ex: Armoire A - Rang 2" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
+                <div><label>Emplacement Précis</label><input id="emplacement" type="text" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
 
                 <div class="grid grid-cols-3 gap-3">
                     <div><label>Qté</label><input id="qty" type="number" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-lg"></div>
-                    <div><label>Seuil Alerte</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-red-600 text-lg"></div>
+                    <div><label>Seuil</label><input id="seuil" type="number" value="2" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center text-red-600 text-lg"></div>
                     <div><label>Prix (€)</label><input id="prix" type="number" step="0.01" value="0" class="w-full border p-4 rounded-2xl bg-slate-50 font-black text-center"></div>
                 </div>
 
-                <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" placeholder="ex: 5" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
+                <div><label>Délai Réappro (Jours)</label><input id="delai" type="number" class="w-full border p-4 rounded-2xl bg-slate-50"></div>
 
                 <div class="pt-4 space-y-3">
-                    <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest active:scale-95 transition-transform">Enregistrer</button>
-                    <button id="btn-supprimer" onclick="supprimerArticle()" class="hidden w-full text-red-500 font-bold py-2 uppercase text-[10px] tracking-widest">🗑️ Supprimer l'article</button>
+                    <button onclick="sauvegarder()" class="w-full bg-blue-600 text-white p-5 rounded-[2rem] font-black uppercase shadow-xl tracking-widest">Enregistrer</button>
+                    <button id="btn-supprimer" onclick="supprimerArticle()" class="hidden w-full text-red-500 font-bold py-2 uppercase text-[10px]">🗑️ Supprimer l'article</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ZONE 5 : LOGIQUE SUPABASE & INITIALISATION
+        // ZONE 5 : LOGIQUE SUPABASE & LISTING
         const S_URL = "https://lluihawrhoajckrgvakv.supabase.co";
         const S_KEY = "sb_publishable_myjqiXhb_Iv1c2rOWzw3Kg_cTb8F86P"; 
         const sb = supabase.createClient(S_URL, S_KEY);
@@ -149,24 +133,19 @@
                                     <h3 class="font-black text-slate-800 text-sm uppercase truncate pr-2">${p.nom}</h3>
                                     <button onclick="ouvrirForm('${p.id}')" class="bg-slate-50 p-2 rounded-xl text-lg shadow-sm">⚙️</button>
                                 </div>
+                                <p class="text-[10px] text-blue-600 font-black mt-2 uppercase tracking-tight">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
+                                <p class="text-[9px] font-mono text-slate-400 mt-1 bg-slate-50 px-2 py-0.5 rounded inline-block">🆔 ${p.barcode || 'SANS CODE'}</p>
                                 
-<p class="text-[10px] text-blue-600 font-black mt-1 uppercase tracking-tight">📍 ${p.lieu || '-'} | ${p.emplacement || '-'}</p>
-<p class="text-[9px] font-mono text-slate-400 mt-1">🆔 ${p.barcode || 'SANS CODE'}</p>
-
-<div class="flex flex-wrap gap-2 mt-3">
-    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">Prix: ${p.prix_unitaire || 0}€</div>
-    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">Délai: ${p.delai_reappro || '?'}j</div>
-</div>
-<div class="flex gap-3 mt-3">
-                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">Prix: ${p.prix_unitaire || 0}€</div>
-                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase">Délai: ${p.delai_reappro || '?'}j</div>
+                                <div class="flex gap-3 mt-3">
+                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Prix: ${p.prix_unitaire || 0}€</div>
+                                    <div class="text-[9px] font-bold bg-slate-100 px-2 py-1 rounded-md text-slate-500 uppercase font-mono">Délai: ${p.delai_reappro || '?'}j</div>
                                 </div>
                             </div>
                         </div>
                         <div class="bg-slate-50/50 p-5 flex justify-between items-center border-t border-slate-100">
                             <div class="flex gap-3">
-                                <button onclick="updateQty('${p.id}', -1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">-</button>
-                                <button onclick="updateQty('${p.id}', 1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl active:bg-slate-100">+</button>
+                                <button onclick="updateQty('${p.id}', -1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl">-</button>
+                                <button onclick="updateQty('${p.id}', 1)" class="bg-white border w-12 h-12 rounded-2xl font-black shadow-sm text-xl">+</button>
                             </div>
                             <div class="text-right">
                                 <span class="text-3xl font-black ${p.quantite <= p.seuil_critique ? 'text-red-600' : 'text-blue-900'}">x${p.quantite}</span>
@@ -194,15 +173,14 @@
                     } else {
                         showToast("NON TROUVÉ ❌", "error");
                         if(confirm("Code inconnu. Créer une fiche ?")) {
-                            toggleScanner();
-                            ouvrirForm();
+                            toggleScanner(); ouvrirForm();
                             document.getElementById('barcode').value = txt;
                         }
                     }
                 }).catch(err => { console.error(err); });
             } else { 
                 container.classList.add('hidden'); 
-                if(html5QrCode) html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+                if(html5QrCode) html5QrCode.stop().then(() => html5QrCode.clear());
             }
         }
 
@@ -257,7 +235,6 @@
             if (!barcode && !document.getElementById('edit-id').value) {
                 barcode = "RTE-" + Math.floor(100000 + Math.random() * 900000);
             }
-
             const payload = {
                 nom: document.getElementById('nom').value,
                 barcode: barcode,
@@ -270,24 +247,16 @@
                 photo_url: document.getElementById('photo-url').value,
                 categorie: 'PIECE'
             };
-
             const id = document.getElementById('edit-id').value;
             const { error } = id ? await sb.from('produits').update(payload).eq('id', id) : await sb.from('produits').insert([payload]);
-            
-            if(!error) { 
-                showToast("Article enregistré !");
-                fermerForm(); 
-                chargerDonnees(); 
-            } else { alert(error.message); }
+            if(!error) { showToast("Enregistré !"); fermerForm(); chargerDonnees(); }
         }
 
         async function supprimerArticle() {
             if (confirm("Supprimer cet article ?")) {
                 const id = document.getElementById('edit-id').value;
                 await sb.from('produits').delete().eq('id', id);
-                showToast("Supprimé", "error");
-                fermerForm();
-                chargerDonnees();
+                showToast("Supprimé", "error"); fermerForm(); chargerDonnees();
             }
         }
 
