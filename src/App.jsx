@@ -1,31 +1,33 @@
+import { useState } from "react";
+import Admin from "./pages/Admin";
+// (On créera Pieces et Materiel juste après)
+
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./components/Login";
 import { supabase } from "./lib/supabaseClient";
 
 function Dashboard() {
-  const { user } = useAuth();
+  const [tab, setTab] = useState("pieces");
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="p-4 bg-white shadow-sm flex justify-between items-center">
-        <span className="font-bold text-blue-600 text-lg">EMASI</span>
-        <button 
-          onClick={() => supabase.auth.signOut()} 
-          className="text-sm bg-gray-200 px-3 py-1 rounded-lg"
-        >Déconnexion</button>
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <header className="p-4 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10">
+        <span className="font-black text-blue-600 tracking-tighter text-xl">EMASI STOCK</span>
+        <button onClick={() => supabase.auth.signOut()} className="text-xs bg-gray-100 p-2 rounded-lg font-bold">SORTIR</button>
       </header>
-      
-      <main className="p-4">
-        <h2 className="text-xl font-bold">Bienvenue {user.email.split('@')[0]}</h2>
-        <div className="mt-6 p-10 border-2 border-dashed border-gray-300 rounded-2xl text-center text-gray-400">
-           Le module Pièces sera ici.
-        </div>
+
+      <main>
+        {tab === "admin" && <Admin />}
+        {tab === "pieces" && <div className="p-10 text-center text-gray-400">L'onglet Pièces arrive...</div>}
       </main>
 
-      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-4 text-xs font-medium">
-        <div className="flex flex-col items-center text-blue-600"><span>📦</span><span>Pièces</span></div>
-        <div className="flex flex-col items-center text-gray-400"><span>🛠️</span><span>Matériel</span></div>
-        <div className="flex flex-col items-center text-gray-400"><span>💰</span><span>Budget</span></div>
-        <div className="flex flex-col items-center text-gray-400"><span>📋</span><span>Admin</span></div>
+      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 shadow-2xl">
+        <button onClick={() => setTab("pieces")} className={`flex flex-col items-center ${tab === 'pieces' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <span className="text-xl">📦</span><span className="text-[10px] font-bold">PIÈCES</span>
+        </button>
+        <button onClick={() => setTab("admin")} className={`flex flex-col items-center ${tab === 'admin' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <span className="text-xl">⚙️</span><span className="text-[10px] font-bold">ADMIN</span>
+        </button>
       </nav>
     </div>
   );
